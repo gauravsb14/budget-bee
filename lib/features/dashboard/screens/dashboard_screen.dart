@@ -15,18 +15,35 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen>
     with TickerProviderStateMixin {
   bool isMonthly = true;
-  TabController? _tabController;
+
+  // Controllers
+  TabController? _monthTabController;
+  TabController? _yearTabController;
+
   List<DateTime> months = [];
+  List<int> years = [];
   int selectedYear = DateTime.now().year;
 
   @override
   void initState() {
     super.initState();
     _generateMonths();
-    _tabController = TabController(length: months.length, vsync: this);
-    _tabController!.index = months.length - 1; // default to current month
-    _tabController!.addListener(() {
-      setState(() {}); // rebuild when tab changes
+    _generateYears();
+
+    _monthTabController = TabController(length: months.length, vsync: this);
+    _monthTabController!.index =
+        months.length - 1; // current month selected by default
+    _monthTabController!.addListener(() {
+      setState(() {}); // rebuild when month tab changes
+    });
+
+    _yearTabController = TabController(length: years.length, vsync: this);
+    _yearTabController!.index =
+        years.length - 1; // current year selected by default
+    _yearTabController!.addListener(() {
+      setState(() {
+        selectedYear = years[_yearTabController!.index];
+      });
     });
   }
 
@@ -37,9 +54,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     });
   }
 
+  void _generateYears() {
+    final currentYear = DateTime.now().year;
+    years = List.generate(5, (i) => currentYear - (4 - i));
+  }
+
   @override
   void dispose() {
-    _tabController?.dispose();
+    _monthTabController?.dispose();
+    _yearTabController?.dispose();
     super.dispose();
   }
 
@@ -57,12 +80,11 @@ class _DashboardScreenState extends State<DashboardScreen>
       body: ValueListenableBuilder(
         valueListenable: expenseBox.listenable(),
         builder: (context, Box<Expense> expensesBox, _) {
-          if (_tabController == null) return const CircularProgressIndicator();
-
           // --- Filter expenses ---
           List<Expense> filteredExpenses = [];
           if (isMonthly) {
-            final selectedMonthDate = months[_tabController!.index];
+            if (_monthTabController == null) return const SizedBox();
+            final selectedMonthDate = months[_monthTabController!.index];
             filteredExpenses = expensesBox.values
                 .where(
                   (e) =>
@@ -124,30 +146,62 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
               ),
 
-              // --- Scrollable Monthly Tabs ---
+              // --- Month Tabs ---
               if (isMonthly)
                 Container(
                   height: 50,
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: TabBar(
-                    controller: _tabController,
+                    controller: _monthTabController,
                     isScrollable: true,
                     indicatorColor: const Color.fromARGB(255, 138, 184, 179),
                     labelColor: Colors.black,
+                    indicatorSize: TabBarIndicatorSize.label,
                     unselectedLabelColor: Colors.black87,
                     tabs: months
                         .map(
                           (m) => Tab(
-                            child: Text(
-                              "${monthName(m.month)} ${m.year}",
-                              style: const TextStyle(fontSize: 13),
+                            child: Container(
+                              alignment: Alignment.center,
+                              child: Text(
+                                "${monthName(m.month)} ${m.year}",
+                                style: const TextStyle(fontSize: 13),
+                              ),
                             ),
                           ),
                         )
                         .toList(),
                     onTap: (_) {
-                      setState(() {}); // rebuild when tab selected
+                      setState(() {});
                     },
+                  ),
+                ),
+
+              // --- Year Tabs ---
+              if (!isMonthly)
+                Container(
+                  height: 50,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: TabBar(
+                    controller: _yearTabController,
+                    isScrollable: false,
+                    indicatorColor: const Color.fromARGB(255, 138, 184, 179),
+                    labelColor: Colors.black,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    unselectedLabelColor: Colors.black87,
+                    tabs: years
+                        .map(
+                          (y) => Tab(
+                            child: Container(
+                              alignment: Alignment.center,
+                              child: Text(
+                                y.toString(),
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
 
