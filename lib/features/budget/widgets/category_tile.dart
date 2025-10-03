@@ -4,10 +4,17 @@ import '../../../models/category_model.dart';
 import '../../../models/subcategory_model.dart';
 import '../../../models/expense_model.dart';
 
-class CategoryTile extends StatelessWidget {
+class CategoryTile extends StatefulWidget {
   final Category category;
 
   const CategoryTile({super.key, required this.category});
+
+  @override
+  State<CategoryTile> createState() => _CategoryTileState();
+}
+
+class _CategoryTileState extends State<CategoryTile> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +25,7 @@ class CategoryTile extends StatelessWidget {
       valueListenable: subBox.listenable(),
       builder: (context, Box<SubCategory> box, _) {
         final subcategories = box.values
-            .where((s) => s.parentCategoryId == category.id)
+            .where((s) => s.parentCategoryId == widget.category.id)
             .toList();
 
         double totalBudget = subcategories.fold(
@@ -32,89 +39,144 @@ class CategoryTile extends StatelessWidget {
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           elevation: 2,
-          child: Theme(
-            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-            child: ExpansionTile(
-              tilePadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              childrenPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 4,
-              ),
-              title: Text(
-                category.name,
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
+          child: Column(
+            children: [
+              // --- Category Header ---
+              InkWell(
+                onTap: () => setState(() => _expanded = !_expanded),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            widget.category.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                          Icon(
+                            _expanded ? Icons.expand_less : Icons.expand_more,
+                            size: 20,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      SizedBox(
+                        height: 6,
+                        child: LinearProgressIndicator(
+                          value: progress > 1 ? 1 : progress,
+                          backgroundColor: Colors.grey[300],
+                          color: progress > 1 ? Colors.red : Colors.green,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "₹${totalSpent.toStringAsFixed(2)} / ₹${totalBudget.toStringAsFixed(2)}",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    height: 6, // thinner progress bar
-                    child: LinearProgressIndicator(
-                      value: progress > 1 ? 1 : progress,
-                      backgroundColor: Colors.grey[300],
-                      color: progress > 1 ? Colors.red : Colors.green,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    "₹${totalSpent.toStringAsFixed(2)} / ₹${totalBudget.toStringAsFixed(2)}",
-                    style: const TextStyle(fontSize: 12, color: Colors.black87),
-                  ),
-                ],
-              ),
-              children: [
-                for (var sub in subcategories)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(sub.name, style: const TextStyle(fontSize: 13)),
-                    subtitle: Padding(
-                      padding: const EdgeInsets.only(top: 4),
-                      child: SizedBox(
-                        height: 6, // thinner progress bar
-                        child: LinearProgressIndicator(
-                          value: sub.monthlyBudget == 0
-                              ? 0
-                              : sub.spent / sub.monthlyBudget,
-                          backgroundColor: Colors.grey[300],
-                          color: sub.spent > sub.monthlyBudget
-                              ? Colors.red
-                              : Colors.green,
+
+              // --- Subcategories ---
+              if (_expanded)
+                Column(
+                  children: [
+                    const Divider(height: 1),
+                    for (var sub in subcategories)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    sub.name,
+                                    style: const TextStyle(fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  SizedBox(
+                                    height: 6,
+                                    child: LinearProgressIndicator(
+                                      value: sub.monthlyBudget == 0
+                                          ? 0
+                                          : sub.spent / sub.monthlyBudget,
+                                      backgroundColor: Colors.grey[300],
+                                      color: sub.spent > sub.monthlyBudget
+                                          ? Colors.red
+                                          : Colors.green,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    "₹${sub.spent.toStringAsFixed(2)} / ₹${sub.monthlyBudget.toStringAsFixed(2)}",
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  icon: const Icon(Icons.edit_note, size: 20),
+                                  onPressed: () =>
+                                      _showEditSubcategoryDialog(context, sub),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete, size: 20),
+                                  onPressed: () => _deleteSubcategory(
+                                    context,
+                                    sub,
+                                    expenseBox,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    // Add Subcategory Button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
+                      child: TextButton.icon(
+                        onPressed: () =>
+                            _showAddSubcategoryDialog(context, widget.category),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text(
+                          "Add Subcategory",
+                          style: TextStyle(fontSize: 13),
                         ),
                       ),
                     ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit_note, size: 20),
-                          onPressed: () =>
-                              _showEditSubcategoryDialog(context, sub),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete, size: 20),
-                          onPressed: () =>
-                              _deleteSubcategory(context, sub, expenseBox),
-                        ),
-                      ],
-                    ),
-                  ),
-                TextButton.icon(
-                  onPressed: () => _showAddSubcategoryDialog(context, category),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text(
-                    "Add Subcategory",
-                    style: TextStyle(fontSize: 13),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+            ],
           ),
         );
       },
