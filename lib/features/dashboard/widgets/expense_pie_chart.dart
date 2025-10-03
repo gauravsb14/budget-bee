@@ -75,7 +75,7 @@ class ExpensePieChart extends StatelessWidget {
                   final index = data.keys.toList().indexOf(entry.key);
                   final percentage = total == 0
                       ? "0%"
-                      : ((entry.value / total) * 100).toStringAsFixed(1) + "%";
+                      : "${((entry.value / total) * 100).toStringAsFixed(1)}%";
 
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 4),

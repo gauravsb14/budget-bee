@@ -3,7 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../models/subcategory_model.dart';
 import '../../../models/expense_model.dart';
 import '../../shared/widgets/top_summary.dart';
-import '../../shared/widgets/top_bar.dart';
+// import '../../shared/widgets/top_bar.dart';
 
 class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
@@ -12,9 +12,36 @@ class TransactionsScreen extends StatefulWidget {
   State<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
-class _TransactionsScreenState extends State<TransactionsScreen> {
-  int selectedYear = DateTime.now().year;
-  int selectedMonth = DateTime.now().month;
+class _TransactionsScreenState extends State<TransactionsScreen>
+    with TickerProviderStateMixin {
+  late TabController _monthTabController;
+  List<DateTime> months = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _generateMonths();
+
+    _monthTabController = TabController(length: months.length, vsync: this);
+    _monthTabController.index =
+        months.length - 1; // current month selected by default
+    _monthTabController.addListener(() {
+      setState(() {}); // rebuild when tab changes
+    });
+  }
+
+  void _generateMonths() {
+    final now = DateTime.now();
+    months = List.generate(12, (i) {
+      return DateTime(now.year, now.month - (11 - i), 1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _monthTabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +51,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return ValueListenableBuilder(
       valueListenable: expenseBox.listenable(),
       builder: (context, Box<Expense> box, _) {
-        // --- Filtered expenses for selected month/year ---
+        final selectedMonthDate = months[_monthTabController.index];
+
+        // --- Filtered expenses for selected month ---
         final expenses =
             box.values
                 .where(
                   (e) =>
-                      e.date.year == selectedYear &&
-                      e.date.month == selectedMonth,
+                      e.date.year == selectedMonthDate.year &&
+                      e.date.month == selectedMonthDate.month,
                 )
                 .toList()
               ..sort((a, b) => b.date.compareTo(a.date));
@@ -62,7 +91,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ),
             centerTitle: true,
             backgroundColor: const Color.fromARGB(255, 138, 184, 179),
-            elevation: 0, // flush with TopBar
+            elevation: 0,
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddExpenseDialog(context),
@@ -71,31 +100,39 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           body: Column(
             children: [
-              // --- Shared TopBar (Month/Year dropdowns) ---
-              Container(
-                color: const Color.fromARGB(255, 138, 184, 179),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TopBar(
-                  selectedYear: selectedYear,
-                  selectedMonth: selectedMonth,
-                  onYearChanged: (year) {
-                    setState(() => selectedYear = year);
-                  },
-                  onMonthChanged: (month) {
-                    setState(() => selectedMonth = month);
-                  },
-                ),
-              ),
-
               // --- Top Summary ---
               Container(
                 color: const Color.fromARGB(255, 138, 184, 179),
                 child: TopSummary(
                   totalBudget: totalBudget,
                   totalSpent: totalExpense,
-                  month: selectedMonth,
-                  year: selectedYear,
+                  month: selectedMonthDate.month,
+                  year: selectedMonthDate.year,
                   textColor: Colors.white,
+                ),
+              ),
+              // --- Month Tabs ---
+              Container(
+                height: 50,
+                // color: const Color.fromARGB(255, 138, 184, 179),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: TabBar(
+                  controller: _monthTabController,
+                  isScrollable: true,
+                  indicatorColor: Color.fromARGB(255, 138, 184, 179),
+                  labelColor: Colors.black87,
+                  unselectedLabelColor: Colors.black87,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  tabs: months
+                      .map(
+                        (m) => Tab(
+                          child: Text(
+                            "${_monthName(m.month)} ${m.year}",
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
               ),
 
@@ -227,6 +264,24 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     );
   }
 
+  String _monthName(int month) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return months[month - 1];
+  }
+
   void _showAddExpenseDialog(BuildContext context) {
     final amountController = TextEditingController();
     final noteController = TextEditingController();
@@ -268,9 +323,8 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (selectedSubId == null || amountController.text.isEmpty) {
+              if (selectedSubId == null || amountController.text.isEmpty)
                 return;
-              }
 
               final expense = Expense(
                 id: DateTime.now().millisecondsSinceEpoch,
@@ -314,16 +368,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              // Reduce spent from subcategory
               if (subcategory != null) {
                 subcategory.spent -= expense.amount;
                 if (subcategory.spent < 0) subcategory.spent = 0;
                 subcategory.save();
               }
-
-              // Delete expense
               expense.delete();
-
               Navigator.pop(context);
             },
             child: const Text("Delete"),

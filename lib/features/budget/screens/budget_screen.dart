@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../models/category_model.dart';
 import '../../../models/subcategory_model.dart';
+import '../../../models/expense_model.dart';
 import '../widgets/category_tile.dart';
 import '../../shared/widgets/top_summary.dart';
-import '../../shared/widgets/top_bar.dart';
 
 class BudgetScreen extends StatefulWidget {
   const BudgetScreen({super.key});
@@ -13,21 +13,50 @@ class BudgetScreen extends StatefulWidget {
   State<BudgetScreen> createState() => _BudgetScreenState();
 }
 
-class _BudgetScreenState extends State<BudgetScreen> {
-  int selectedYear = DateTime.now().year;
-  int selectedMonth = DateTime.now().month;
+class _BudgetScreenState extends State<BudgetScreen>
+    with TickerProviderStateMixin {
+  late TabController _monthTabController;
+  List<DateTime> months = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _generateMonths();
+
+    _monthTabController = TabController(length: months.length, vsync: this);
+    _monthTabController.index = months.length - 1; // current month selected
+    _monthTabController.addListener(() {
+      setState(() {}); // rebuild when month changes
+    });
+  }
+
+  void _generateMonths() {
+    final now = DateTime.now();
+    months = List.generate(
+      12,
+      (i) => DateTime(now.year, now.month - (11 - i), 1),
+    );
+  }
+
+  @override
+  void dispose() {
+    _monthTabController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final categoryBox = Hive.box<Category>('categories');
     final subBox = Hive.box<SubCategory>('subcategories');
+    final expenseBox = Hive.box<Expense>('expenses');
 
     return ValueListenableBuilder(
       valueListenable: categoryBox.listenable(),
       builder: (context, Box<Category> box, _) {
         final categories = box.values.toList();
+        final selectedMonthDate = months[_monthTabController.index];
 
-        // --- Calculate Top Summary for selected month/year ---
+        // --- Calculate Top Summary for selected month ---
         double totalBudget = 0;
         double totalSpent = 0;
 
@@ -36,14 +65,25 @@ class _BudgetScreenState extends State<BudgetScreen> {
               .where((s) => s.parentCategoryId == cat.id)
               .toList();
 
-          totalBudget += subs.fold(0, (sum, s) => sum + s.monthlyBudget);
-          totalSpent += subs.fold(0, (sum, s) => sum + s.spent);
+          for (var sub in subs) {
+            final subExpenses = expenseBox.values
+                .where(
+                  (e) =>
+                      e.subCategoryId == sub.id &&
+                      e.date.year == selectedMonthDate.year &&
+                      e.date.month == selectedMonthDate.month,
+                )
+                .toList();
+
+            totalBudget += sub.monthlyBudget;
+            totalSpent += subExpenses.fold(0, (sum, e) => sum + e.amount);
+          }
         }
 
         return Scaffold(
           appBar: AppBar(
             title: const Text(
-              "Budget",
+              "Create Budget",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
                 color: Colors.black87,
@@ -51,7 +91,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
             ),
             centerTitle: true,
             backgroundColor: const Color.fromARGB(255, 138, 184, 179),
-            elevation: 0, // flush with TopBar
+            elevation: 0,
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddCategoryDialog(context),
@@ -60,47 +100,47 @@ class _BudgetScreenState extends State<BudgetScreen> {
           ),
           body: Column(
             children: [
-              // --- TopBar for Year/Month selection ---
-              Container(
-                color: const Color.fromARGB(255, 138, 184, 179),
-                padding: const EdgeInsets.symmetric(
-                  // vertical: 8,
-                  horizontal: 12,
-                ),
-                child: TopBar(
-                  selectedYear: selectedYear,
-                  selectedMonth: selectedMonth,
-                  onYearChanged: (year) {
-                    setState(() => selectedYear = year);
-                  },
-                  onMonthChanged: (month) {
-                    setState(() => selectedMonth = month);
-                  },
-                ),
-              ),
-
               // --- Top Summary ---
               Container(
                 color: const Color.fromARGB(255, 138, 184, 179),
-                // padding: const EdgeInsets.symmetric(vertical: 8),
                 child: TopSummary(
                   totalBudget: totalBudget,
                   totalSpent: totalSpent,
-                  month: selectedMonth,
-                  year: selectedYear,
+                  month: selectedMonthDate.month,
+                  year: selectedMonthDate.year,
                   textColor: Colors.white,
                 ),
               ),
-
-              // const SizedBox(height: 8),
+              // --- Month Tabs ---
+              Container(
+                height: 50,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: TabBar(
+                  controller: _monthTabController,
+                  isScrollable: true,
+                  indicatorColor: const Color.fromARGB(255, 138, 184, 179),
+                  labelColor: Colors.black87,
+                  unselectedLabelColor: Colors.black87,
+                  indicatorSize: TabBarIndicatorSize.label,
+                  tabs: months
+                      .map(
+                        (m) => Tab(
+                          child: Text(
+                            "${_monthName(m.month)} ${m.year}",
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
 
               // --- Category Tiles ---
               Expanded(
                 child: ListView.builder(
                   itemCount: categories.length,
-                  itemBuilder: (context, index) {
-                    return CategoryTile(category: categories[index]);
-                  },
+                  itemBuilder: (context, index) =>
+                      CategoryTile(category: categories[index]),
                 ),
               ),
             ],
@@ -110,7 +150,24 @@ class _BudgetScreenState extends State<BudgetScreen> {
     );
   }
 
-  // --- Add Main Category ---
+  String _monthName(int month) {
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return months[month - 1];
+  }
+
   void _showAddCategoryDialog(BuildContext context) {
     final nameController = TextEditingController();
     final categoryBox = Hive.box<Category>('categories');
