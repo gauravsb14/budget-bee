@@ -298,7 +298,9 @@ class _CategoryTileState extends State<CategoryTile> {
     final expenses = expenseBox.values
         .where((e) => e.subCategoryId == subcategory.id)
         .toList();
-    for (var e in expenses) e.delete();
+    for (var e in expenses) {
+      e.delete();
+    }
     subcategory.delete();
   }
 }
