@@ -3,7 +3,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../models/subcategory_model.dart';
 import '../../../models/expense_model.dart';
 import '../widgets/subcategory_tile.dart';
-import '../widgets/expense_pie_chart.dart'; // Updated pie chart with legends
+import '../widgets/expense_pie_chart.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -12,10 +12,36 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
-  bool isMonthly = true; // Monthly/Yearly toggle
-  int selectedMonth = DateTime.now().month;
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
+  bool isMonthly = true;
+  TabController? _tabController;
+  List<DateTime> months = [];
   int selectedYear = DateTime.now().year;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateMonths();
+    _tabController = TabController(length: months.length, vsync: this);
+    _tabController!.index = months.length - 1; // default to current month
+    _tabController!.addListener(() {
+      setState(() {}); // rebuild when tab changes
+    });
+  }
+
+  void _generateMonths() {
+    final now = DateTime.now();
+    months = List.generate(12, (i) {
+      return DateTime(now.year, now.month - (11 - i), 1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -31,29 +57,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: ValueListenableBuilder(
         valueListenable: expenseBox.listenable(),
         builder: (context, Box<Expense> expensesBox, _) {
-          // Filter expenses based on month/year
-          final expenses = expensesBox.values.where((e) {
-            if (isMonthly) {
-              return e.date.year == selectedYear &&
-                  e.date.month == selectedMonth;
-            } else {
-              return e.date.year == selectedYear;
-            }
-          }).toList();
+          if (_tabController == null) return const CircularProgressIndicator();
 
-          // Map subcategory id -> total spent
+          // --- Filter expenses ---
+          List<Expense> filteredExpenses = [];
+          if (isMonthly) {
+            final selectedMonthDate = months[_tabController!.index];
+            filteredExpenses = expensesBox.values
+                .where(
+                  (e) =>
+                      e.date.year == selectedMonthDate.year &&
+                      e.date.month == selectedMonthDate.month,
+                )
+                .toList();
+          } else {
+            filteredExpenses = expensesBox.values
+                .where((e) => e.date.year == selectedYear)
+                .toList();
+          }
+
+          // Map subcategory -> total spent
           final Map<int, double> subSpent = {};
-          for (var e in expenses) {
+          for (var e in filteredExpenses) {
             subSpent[e.subCategoryId] =
                 (subSpent[e.subCategoryId] ?? 0) + e.amount;
           }
 
-          // Get subcategories with expenses
           final subcategories = subBox.values
               .where((s) => subSpent.containsKey(s.id))
               .toList();
 
-          // Prepare pie chart data: subcategory name -> amount spent
+          // Pie chart data
           final Map<String, double> pieData = {};
           for (var s in subcategories) {
             pieData[s.name] = subSpent[s.id]!;
@@ -61,7 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
           return Column(
             children: [
-              // --- Monthly / Yearly Toggle ---
+              // --- Monthly / Yearly toggle ---
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Row(
@@ -70,65 +104,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ChoiceChip(
                       label: const Text("Monthly"),
                       selected: isMonthly,
-                      onSelected: (_) => setState(() => isMonthly = true),
+                      onSelected: (_) {
+                        setState(() {
+                          isMonthly = true;
+                        });
+                      },
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text("Yearly"),
                       selected: !isMonthly,
-                      onSelected: (_) => setState(() => isMonthly = false),
+                      onSelected: (_) {
+                        setState(() {
+                          isMonthly = false;
+                        });
+                      },
                     ),
                   ],
                 ),
               ),
 
-              // --- Horizontal Month Selector ---
+              // --- Scrollable Monthly Tabs ---
               if (isMonthly)
-                SizedBox(
+                Container(
                   height: 50,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: 12,
-                    itemBuilder: (context, index) {
-                      final month = index + 1;
-                      return GestureDetector(
-                        onTap: () => setState(() => selectedMonth = month),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selectedMonth == month
-                                ? const Color.fromARGB(255, 138, 184, 179)
-                                : Colors.grey[300],
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Center(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: TabBar(
+                    controller: _tabController,
+                    isScrollable: true,
+                    indicatorColor: const Color.fromARGB(255, 138, 184, 179),
+                    labelColor: Colors.black,
+                    unselectedLabelColor: Colors.black87,
+                    tabs: months
+                        .map(
+                          (m) => Tab(
                             child: Text(
-                              monthName(month),
-                              style: TextStyle(
-                                color: selectedMonth == month
-                                    ? Colors.white
-                                    : Colors.black87,
-                              ),
+                              "${monthName(m.month)} ${m.year}",
+                              style: const TextStyle(fontSize: 13),
                             ),
                           ),
-                        ),
-                      );
+                        )
+                        .toList(),
+                    onTap: (_) {
+                      setState(() {}); // rebuild when tab selected
                     },
                   ),
                 ),
 
               const SizedBox(height: 16),
 
-              // --- Pie Chart with total expense in center ---
+              // --- Pie Chart ---
               if (pieData.isNotEmpty) ExpensePieChart(data: pieData),
 
               const SizedBox(height: 16),
 
-              // --- Subcategory Tiles with budget vs spent percentage ---
+              // --- Subcategory Tiles ---
               Expanded(
                 child: ListView.builder(
                   itemCount: subcategories.length,
@@ -136,7 +166,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     final s = subcategories[index];
                     final spent = subSpent[s.id] ?? 0.0;
 
-                    // Calculate % of budget spent
                     double percent = s.monthlyBudget == 0
                         ? 0
                         : (spent / s.monthlyBudget * 100);
