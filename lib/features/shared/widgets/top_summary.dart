@@ -3,14 +3,36 @@ import 'package:flutter/material.dart';
 class TopSummary extends StatelessWidget {
   final double totalBudget;
   final double totalSpent;
-  final Color textColor; // new (for labels + amounts)
+  final int month; // 1-12
+  final int year;
+  final Color textColor; // For text labels & amounts
 
   const TopSummary({
     super.key,
     required this.totalBudget,
     required this.totalSpent,
-    this.textColor = const Color.fromARGB(221, 46, 46, 46), // default
+    required this.month,
+    required this.year,
+    this.textColor = const Color.fromARGB(221, 46, 46, 46),
   });
+
+  String get monthName {
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return months[month - 1];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,13 +40,14 @@ class TopSummary extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      // padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      // decoration: BoxDecoration(
-      //   color: Colors.amber, // background for summary section
-      //   // borderRadius: BorderRadius.horizontal(1),
-      // ),
+      color: const Color.fromARGB(255, 138, 184, 179),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 8,
+        vertical: 2,
+      ), // tiny vertical
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           _buildSummaryColumn("Total Budget", totalBudget, textColor),
           _buildSummaryColumn("Spent", totalSpent, textColor),
@@ -36,7 +59,6 @@ class TopSummary extends StatelessWidget {
 
   Widget _buildSummaryColumn(String title, double amount, Color textColor) {
     return Column(
-      // mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           title,
@@ -48,7 +70,7 @@ class TopSummary extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          "₹${amount.toStringAsFixed(2)}",
+          amount > 0 ? "₹${amount.toStringAsFixed(2)}" : "-",
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 14,

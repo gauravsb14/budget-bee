@@ -3,9 +3,18 @@ import 'package:hive_flutter/hive_flutter.dart';
 import '../../../models/subcategory_model.dart';
 import '../../../models/expense_model.dart';
 import '../../shared/widgets/top_summary.dart';
+import '../../shared/widgets/top_bar.dart';
 
-class TransactionsScreen extends StatelessWidget {
+class TransactionsScreen extends StatefulWidget {
   const TransactionsScreen({super.key});
+
+  @override
+  State<TransactionsScreen> createState() => _TransactionsScreenState();
+}
+
+class _TransactionsScreenState extends State<TransactionsScreen> {
+  int selectedYear = DateTime.now().year;
+  int selectedMonth = DateTime.now().month;
 
   @override
   Widget build(BuildContext context) {
@@ -15,8 +24,16 @@ class TransactionsScreen extends StatelessWidget {
     return ValueListenableBuilder(
       valueListenable: expenseBox.listenable(),
       builder: (context, Box<Expense> box, _) {
-        final expenses = box.values.toList()
-          ..sort((a, b) => b.date.compareTo(a.date));
+        // --- Filtered expenses for selected month/year ---
+        final expenses =
+            box.values
+                .where(
+                  (e) =>
+                      e.date.year == selectedYear &&
+                      e.date.month == selectedMonth,
+                )
+                .toList()
+              ..sort((a, b) => b.date.compareTo(a.date));
 
         // --- Group by date ---
         final Map<String, List<Expense>> grouped = {};
@@ -26,8 +43,9 @@ class TransactionsScreen extends StatelessWidget {
           grouped[dateKey]!.add(e);
         }
 
-        // --- Calculate Top Summary ---
-        double totalBudget = subBox.values.fold(
+        // --- Calculate Budget Summary ---
+        final filteredSub = subBox.values.toList();
+        double totalBudget = filteredSub.fold(
           0,
           (sum, s) => sum + s.monthlyBudget,
         );
@@ -35,10 +53,16 @@ class TransactionsScreen extends StatelessWidget {
 
         return Scaffold(
           appBar: AppBar(
-            title: const Text("Budget Bee"),
+            title: const Text(
+              "Transactions",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color.fromARGB(255, 35, 48, 124),
+              ),
+            ),
+            centerTitle: true,
             backgroundColor: const Color.fromARGB(255, 138, 184, 179),
-            foregroundColor: Colors.white,
-            elevation: 1,
+            elevation: 0, // flush with TopBar
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => _showAddExpenseDialog(context),
@@ -47,125 +71,142 @@ class TransactionsScreen extends StatelessWidget {
           ),
           body: Column(
             children: [
-              // --- Top Summary (same style as BudgetScreen) ---
+              // --- Shared TopBar (Month/Year dropdowns) ---
               Container(
-                width: double.infinity,
-                color: const Color.fromARGB(
-                  255,
-                  138,
-                  184,
-                  179,
-                ), // same as AppBar for consistency
-                child: TopSummary(
-                  totalBudget: totalBudget,
-                  totalSpent: totalExpense,
+                color: const Color.fromARGB(255, 138, 184, 179),
+                padding: const EdgeInsets.symmetric(
+                  // vertical: 2,
+                  horizontal: 12,
+                ),
+                child: TopBar(
+                  selectedYear: selectedYear,
+                  selectedMonth: selectedMonth,
+                  onYearChanged: (year) {
+                    setState(() => selectedYear = year);
+                  },
+                  onMonthChanged: (month) {
+                    setState(() => selectedMonth = month);
+                  },
                 ),
               ),
 
-              const SizedBox(height: 8),
+              // --- Top Summary ---
+              Container(
+                color: const Color.fromARGB(255, 138, 184, 179),
+                // padding: const EdgeInsets.symmetric(vertical: 2),
+                child: TopSummary(
+                  totalBudget: totalBudget,
+                  totalSpent: totalExpense,
+                  month: selectedMonth,
+                  year: selectedYear,
+                  textColor: Colors.white,
+                ),
+              ),
 
-              // --- Expense List Grouped by Date ---
+              // const SizedBox(height: 2),
+
+              // --- Transaction List ---
               Expanded(
-                child: ListView(
-                  children: grouped.entries.map((entry) {
-                    final date = entry.key;
-                    final dayExpenses = entry.value;
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // --- Date Header ---
-                        Container(
-                          width: double.infinity,
-                          color: Colors.grey[200],
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            date,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                              color: Colors.black87,
-                            ),
-                          ),
+                child: expenses.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "No transactions for this month",
+                          style: TextStyle(fontSize: 14, color: Colors.grey),
                         ),
-
-                        // --- Transactions ---
-                        ...dayExpenses.map((e) {
-                          final sub = subBox.values.firstWhere(
-                            (s) => s.id == e.subCategoryId,
-                            orElse: () => SubCategory(
-                              id: 0,
-                              parentCategoryId: 0,
-                              name: "Unknown",
-                              monthlyBudget: 0,
-                              spent: 0,
-                            ),
-                          );
+                      )
+                    : ListView(
+                        children: grouped.entries.map((entry) {
+                          final date = entry.key;
+                          final dayExpenses = entry.value;
 
                           return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Padding(
+                              Container(
+                                width: double.infinity,
+                                color: Colors.grey[200],
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
-                                  vertical: 12,
+                                  vertical: 4,
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    // Left: subcategory + note
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          sub.name,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w600,
-                                            fontSize: 14,
-                                            color: Color.fromARGB(
-                                              221,
-                                              46,
-                                              46,
-                                              46,
-                                            ),
-                                          ),
-                                        ),
-                                        if (e.note.isNotEmpty)
-                                          Text(
-                                            e.note,
-                                            style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-
-                                    // Right: Amount
-                                    Text(
-                                      "₹${e.amount.toStringAsFixed(2)}",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: e.amount > 0
-                                            ? Colors.red[400] // expense
-                                            : Colors.green[600], // credit
-                                      ),
-                                    ),
-                                  ],
+                                child: Text(
+                                  date,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: Colors.black87,
+                                  ),
                                 ),
                               ),
-                              Divider(color: Colors.grey[300], height: 1),
+                              ...dayExpenses.map((e) {
+                                final sub = subBox.values.firstWhere(
+                                  (s) => s.id == e.subCategoryId,
+                                  orElse: () => SubCategory(
+                                    id: 0,
+                                    parentCategoryId: 0,
+                                    name: "Unknown",
+                                    monthlyBudget: 0,
+                                    spent: 0,
+                                  ),
+                                );
+                                return Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12,
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                sub.name,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w600,
+                                                  fontSize: 14,
+                                                  color: Color.fromARGB(
+                                                    221,
+                                                    46,
+                                                    46,
+                                                    46,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (e.note.isNotEmpty)
+                                                Text(
+                                                  e.note,
+                                                  style: const TextStyle(
+                                                    fontSize: 12,
+                                                    color: Colors.grey,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          Text(
+                                            "₹${e.amount.toStringAsFixed(2)}",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              color: e.amount > 0
+                                                  ? Colors.red[400]
+                                                  : Colors.green[600],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Divider(color: Colors.grey[300], height: 1),
+                                  ],
+                                );
+                              }).toList(),
                             ],
                           );
                         }).toList(),
-                      ],
-                    );
-                  }).toList(),
-                ),
+                      ),
               ),
             ],
           ),

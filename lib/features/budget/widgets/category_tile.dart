@@ -30,64 +30,91 @@ class CategoryTile extends StatelessWidget {
 
         return Card(
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: ExpansionTile(
-            title: Text(
-              category.name,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LinearProgressIndicator(
-                  value: progress > 1 ? 1 : progress,
-                  backgroundColor: Colors.grey[300],
-                  color: progress > 1 ? Colors.red : Colors.green,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          elevation: 2,
+          child: Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              childrenPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 4,
+              ),
+              title: Text(
+                category.name,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  "₹${totalSpent.toStringAsFixed(2)} / ₹${totalBudget.toStringAsFixed(2)}",
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 6, // thinner progress bar
+                    child: LinearProgressIndicator(
+                      value: progress > 1 ? 1 : progress,
+                      backgroundColor: Colors.grey[300],
+                      color: progress > 1 ? Colors.red : Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    "₹${totalSpent.toStringAsFixed(2)} / ₹${totalBudget.toStringAsFixed(2)}",
+                    style: const TextStyle(fontSize: 12, color: Colors.black87),
+                  ),
+                ],
+              ),
+              children: [
+                for (var sub in subcategories)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(sub.name, style: const TextStyle(fontSize: 13)),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: SizedBox(
+                        height: 6, // thinner progress bar
+                        child: LinearProgressIndicator(
+                          value: sub.monthlyBudget == 0
+                              ? 0
+                              : sub.spent / sub.monthlyBudget,
+                          backgroundColor: Colors.grey[300],
+                          color: sub.spent > sub.monthlyBudget
+                              ? Colors.red
+                              : Colors.green,
+                        ),
+                      ),
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.edit_note, size: 20),
+                          onPressed: () =>
+                              _showEditSubcategoryDialog(context, sub),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, size: 20),
+                          onPressed: () =>
+                              _deleteSubcategory(context, sub, expenseBox),
+                        ),
+                      ],
+                    ),
+                  ),
+                TextButton.icon(
+                  onPressed: () => _showAddSubcategoryDialog(context, category),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text(
+                    "Add Subcategory",
+                    style: TextStyle(fontSize: 13),
+                  ),
                 ),
               ],
             ),
-            children: [
-              for (var sub in subcategories)
-                ListTile(
-                  title: Text(sub.name),
-                  subtitle: LinearProgressIndicator(
-                    value: sub.monthlyBudget == 0
-                        ? 0
-                        : sub.spent / sub.monthlyBudget,
-                    backgroundColor: Colors.grey[300],
-                    color: sub.spent > sub.monthlyBudget
-                        ? Colors.red
-                        : Colors.green,
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        onPressed: () => _showAddExpenseDialog(context, sub),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.edit),
-                        onPressed: () =>
-                            _showEditSubcategoryDialog(context, sub),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () =>
-                            _deleteSubcategory(context, sub, expenseBox),
-                      ),
-                    ],
-                  ),
-                ),
-              TextButton.icon(
-                onPressed: () => _showAddSubcategoryDialog(context, category),
-                icon: const Icon(Icons.add),
-                label: const Text("Add Subcategory"),
-              ),
-            ],
           ),
         );
       },
@@ -110,11 +137,13 @@ class CategoryTile extends StatelessWidget {
             TextField(
               controller: nameController,
               decoration: const InputDecoration(labelText: "Subcategory Name"),
+              style: const TextStyle(fontSize: 13),
             ),
             TextField(
               controller: budgetController,
               decoration: const InputDecoration(labelText: "Monthly Budget"),
               keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 13),
             ),
           ],
         ),
@@ -128,7 +157,6 @@ class CategoryTile extends StatelessWidget {
               final name = nameController.text.trim();
               final budget = double.tryParse(budgetController.text) ?? 0;
               if (name.isEmpty) return;
-
               final sub = SubCategory(
                 id: DateTime.now().millisecondsSinceEpoch,
                 parentCategoryId: category.id,
@@ -136,7 +164,6 @@ class CategoryTile extends StatelessWidget {
                 monthlyBudget: budget,
                 spent: 0,
               );
-
               subBox.add(sub);
               Navigator.pop(context);
             },
@@ -161,18 +188,20 @@ class CategoryTile extends StatelessWidget {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text("Edit Subcategory"),
+        title: const Text("Edit Subcategory", style: TextStyle(fontSize: 14)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nameController,
-              decoration: const InputDecoration(labelText: "Subcategory Name"),
+              decoration: const InputDecoration(labelText: "Sub Category Name"),
+              style: const TextStyle(fontSize: 13),
             ),
             TextField(
               controller: budgetController,
               decoration: const InputDecoration(labelText: "Monthly Budget"),
               keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 13),
             ),
           ],
         ),
@@ -186,11 +215,9 @@ class CategoryTile extends StatelessWidget {
               final name = nameController.text.trim();
               final budget = double.tryParse(budgetController.text) ?? 0;
               if (name.isEmpty) return;
-
               subcategory.name = name;
               subcategory.monthlyBudget = budget;
               subcategory.save();
-
               Navigator.pop(context);
             },
             child: const Text("Save"),
@@ -206,69 +233,10 @@ class CategoryTile extends StatelessWidget {
     SubCategory subcategory,
     Box<Expense> expenseBox,
   ) {
-    // Delete all expenses under this subcategory
     final expenses = expenseBox.values
         .where((e) => e.subCategoryId == subcategory.id)
         .toList();
-    for (var e in expenses) {
-      e.delete();
-    }
-
+    for (var e in expenses) e.delete();
     subcategory.delete();
-  }
-
-  // --- Add Expense ---
-  void _showAddExpenseDialog(BuildContext context, SubCategory subcategory) {
-    final amountController = TextEditingController();
-    final noteController = TextEditingController();
-    final expenseBox = Hive.box<Expense>('expenses');
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text("Add Expense - ${subcategory.name}"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: amountController,
-              decoration: const InputDecoration(labelText: "Amount"),
-              keyboardType: TextInputType.number,
-            ),
-            TextField(
-              controller: noteController,
-              decoration: const InputDecoration(labelText: "Note"),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount = double.tryParse(amountController.text) ?? 0;
-              if (amount <= 0) return;
-
-              final expense = Expense(
-                id: DateTime.now().millisecondsSinceEpoch,
-                subCategoryId: subcategory.id,
-                amount: amount,
-                note: noteController.text,
-                date: DateTime.now(),
-              );
-
-              expenseBox.add(expense);
-              subcategory.spent += amount;
-              subcategory.save();
-
-              Navigator.pop(context);
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      ),
-    );
   }
 }
