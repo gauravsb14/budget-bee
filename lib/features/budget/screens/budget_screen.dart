@@ -46,7 +46,7 @@ class _BudgetScreenState extends State<BudgetScreen> {
               "Budget",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 35, 48, 124),
+                color: Colors.black87,
               ),
             ),
             centerTitle: true,

@@ -57,7 +57,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               "Transactions",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                color: Color.fromARGB(255, 35, 48, 124),
+                color: Colors.black87,
               ),
             ),
             centerTitle: true,
@@ -214,7 +214,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                     Divider(color: Colors.grey[300], height: 1),
                                   ],
                                 );
-                              }).toList(),
+                              }),
                             ],
                           );
                         }).toList(),
@@ -268,8 +268,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ),
           ElevatedButton(
             onPressed: () {
-              if (selectedSubId == null || amountController.text.isEmpty)
+              if (selectedSubId == null || amountController.text.isEmpty) {
                 return;
+              }
 
               final expense = Expense(
                 id: DateTime.now().millisecondsSinceEpoch,

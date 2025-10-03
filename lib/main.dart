@@ -4,6 +4,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'models/category_model.dart';
 import 'models/subcategory_model.dart';
 import 'models/expense_model.dart';
+import 'models/user_profile.dart';
 import 'features/core_navigation/screens/home_screen.dart';
 
 void main() async {
@@ -13,10 +14,12 @@ void main() async {
   Hive.registerAdapter(CategoryAdapter());
   Hive.registerAdapter(SubCategoryAdapter());
   Hive.registerAdapter(ExpenseAdapter());
+  Hive.registerAdapter(UserProfileAdapter());
 
   await Hive.openBox<Category>('categories');
   await Hive.openBox<SubCategory>('subcategories');
   await Hive.openBox<Expense>('expenses');
+  await Hive.openBox<UserProfile>('userProfile');
 
   runApp(const MyApp());
 }
@@ -55,6 +58,5 @@ class MyApp extends StatelessWidget {
       ),
       home: const HomeScreen(),
     );
-    ;
   }
 }

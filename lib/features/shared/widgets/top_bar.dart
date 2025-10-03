@@ -44,12 +44,7 @@ class TopBar extends StatelessWidget {
                     child: Text(
                       "$y",
                       style: const TextStyle(
-                        color: Color.fromARGB(
-                          255,
-                          35,
-                          48,
-                          124,
-                        ), // 👈 color inside dropdown list
+                        color: Colors.black87, // 👈 color inside dropdown list
                       ),
                     ),
                   ),
@@ -66,10 +61,10 @@ class TopBar extends StatelessWidget {
             value: selectedMonth,
             dropdownColor: Colors.white,
             style: const TextStyle(
-              color: Color.fromARGB(255, 35, 48, 124),
+              color: Colors.black87,
               fontWeight: FontWeight.bold,
             ),
-            iconEnabledColor: Color.fromARGB(255, 35, 48, 124),
+            iconEnabledColor: Colors.black87,
             items: List.generate(12, (i) => i + 1)
                 .map(
                   (m) => DropdownMenuItem(
@@ -90,12 +85,7 @@ class TopBar extends StatelessWidget {
                         "Dec",
                       ][m - 1],
                       style: const TextStyle(
-                        color: Color.fromARGB(
-                          255,
-                          35,
-                          48,
-                          124,
-                        ), // 👈 dropdown menu items
+                        color: Colors.black87, // 👈 dropdown menu items
                       ),
                     ),
                   ),
