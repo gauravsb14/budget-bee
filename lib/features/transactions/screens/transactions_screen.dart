@@ -74,10 +74,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               // --- Shared TopBar (Month/Year dropdowns) ---
               Container(
                 color: const Color.fromARGB(255, 138, 184, 179),
-                padding: const EdgeInsets.symmetric(
-                  // vertical: 2,
-                  horizontal: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TopBar(
                   selectedYear: selectedYear,
                   selectedMonth: selectedMonth,
@@ -93,7 +90,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               // --- Top Summary ---
               Container(
                 color: const Color.fromARGB(255, 138, 184, 179),
-                // padding: const EdgeInsets.symmetric(vertical: 2),
                 child: TopSummary(
                   totalBudget: totalBudget,
                   totalSpent: totalExpense,
@@ -102,8 +98,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   textColor: Colors.white,
                 ),
               ),
-
-              // const SizedBox(height: 2),
 
               // --- Transaction List ---
               Expanded(
@@ -187,14 +181,32 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                                                 ),
                                             ],
                                           ),
-                                          Text(
-                                            "₹${e.amount.toStringAsFixed(2)}",
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: e.amount > 0
-                                                  ? Colors.red[400]
-                                                  : Colors.green[600],
-                                            ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                "₹${e.amount.toStringAsFixed(2)}",
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.normal,
+                                                  fontSize: 12,
+                                                  color: e.amount > 0
+                                                      ? Colors.red[400]
+                                                      : Colors.green[600],
+                                                ),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                  size: 20,
+                                                ),
+                                                onPressed: () => _deleteExpense(
+                                                  context,
+                                                  e,
+                                                  sub,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ],
                                       ),
@@ -258,6 +270,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             onPressed: () {
               if (selectedSubId == null || amountController.text.isEmpty)
                 return;
+
               final expense = Expense(
                 id: DateTime.now().millisecondsSinceEpoch,
                 subCategoryId: selectedSubId!,
@@ -277,6 +290,42 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               Navigator.pop(context);
             },
             child: const Text("Save"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _deleteExpense(
+    BuildContext context,
+    Expense expense,
+    SubCategory? subcategory,
+  ) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Delete Expense"),
+        content: const Text("Are you sure you want to delete this expense?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // Reduce spent from subcategory
+              if (subcategory != null) {
+                subcategory.spent -= expense.amount;
+                if (subcategory.spent < 0) subcategory.spent = 0;
+                subcategory.save();
+              }
+
+              // Delete expense
+              expense.delete();
+
+              Navigator.pop(context);
+            },
+            child: const Text("Delete"),
           ),
         ],
       ),
