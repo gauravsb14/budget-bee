@@ -31,15 +31,11 @@ class _DashboardScreenState extends State<DashboardScreen>
     _generateYears();
 
     _monthTabController = TabController(length: months.length, vsync: this);
-    _monthTabController!.index =
-        months.length - 1; // current month selected by default
-    _monthTabController!.addListener(() {
-      setState(() {}); // rebuild when month tab changes
-    });
+    _monthTabController!.index = months.length - 1;
+    _monthTabController!.addListener(() => setState(() {}));
 
     _yearTabController = TabController(length: years.length, vsync: this);
-    _yearTabController!.index =
-        years.length - 1; // current year selected by default
+    _yearTabController!.index = years.length - 1;
     _yearTabController!.addListener(() {
       setState(() {
         selectedYear = years[_yearTabController!.index];
@@ -49,9 +45,10 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   void _generateMonths() {
     final now = DateTime.now();
-    months = List.generate(12, (i) {
-      return DateTime(now.year, now.month - (11 - i), 1);
-    });
+    months = List.generate(
+      12,
+      (i) => DateTime(now.year, now.month - (11 - i), 1),
+    );
   }
 
   void _generateYears() {
@@ -65,6 +62,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     _yearTabController?.dispose();
     super.dispose();
   }
+
+  String getMonthKey(DateTime date) => "${date.year}-${date.month}";
 
   @override
   Widget build(BuildContext context) {
@@ -82,9 +81,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         builder: (context, Box<Expense> expensesBox, _) {
           // --- Filter expenses ---
           List<Expense> filteredExpenses = [];
+          String? monthKey;
+
           if (isMonthly) {
             if (_monthTabController == null) return const SizedBox();
             final selectedMonthDate = months[_monthTabController!.index];
+            monthKey = getMonthKey(selectedMonthDate);
             filteredExpenses = expensesBox.values
                 .where(
                   (e) =>
@@ -105,6 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 (subSpent[e.subCategoryId] ?? 0) + e.amount;
           }
 
+          // Filter subcategories that have expenses
           final subcategories = subBox.values
               .where((s) => subSpent.containsKey(s.id))
               .toList();
@@ -126,21 +129,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ChoiceChip(
                       label: const Text("Monthly"),
                       selected: isMonthly,
-                      onSelected: (_) {
-                        setState(() {
-                          isMonthly = true;
-                        });
-                      },
+                      onSelected: (_) => setState(() => isMonthly = true),
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text("Yearly"),
                       selected: !isMonthly,
-                      onSelected: (_) {
-                        setState(() {
-                          isMonthly = false;
-                        });
-                      },
+                      onSelected: (_) => setState(() => isMonthly = false),
                     ),
                   ],
                 ),
@@ -171,9 +166,6 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ),
                         )
                         .toList(),
-                    onTap: (_) {
-                      setState(() {});
-                    },
                   ),
                 ),
 
@@ -220,10 +212,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                     final s = subcategories[index];
                     final spent = subSpent[s.id] ?? 0.0;
 
-                    double percent = s.monthlyBudget == 0
-                        ? 0
-                        : (spent / s.monthlyBudget * 100);
-                    String percentText = spent > s.monthlyBudget
+                    // Use monthlyBudgets map for monthly view
+                    final budget = isMonthly && monthKey != null
+                        ? s.monthlyBudgets[monthKey] ?? 0
+                        : s.monthlyBudgets.values.fold(0.0, (a, b) => a + b);
+
+                    double percent = budget == 0 ? 0 : (spent / budget * 100);
+                    String percentText = spent > budget
                         ? "-${percent.toStringAsFixed(1)}%"
                         : "${percent.toStringAsFixed(1)}%";
 
@@ -231,6 +226,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       subcategory: s,
                       spent: spent,
                       percentBudgetSpent: percentText,
+                      monthlyBudget: budget,
                     );
                   },
                 ),

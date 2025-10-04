@@ -5,12 +5,14 @@ class SubcategoryTile extends StatelessWidget {
   final SubCategory subcategory;
   final double spent;
   final String percentBudgetSpent; // e.g., "75%" or "-120%"
+  final double monthlyBudget; // 👈 Added for selected month
 
   const SubcategoryTile({
     super.key,
     required this.subcategory,
     required this.spent,
     required this.percentBudgetSpent,
+    required this.monthlyBudget, // 👈 Required
   });
 
   @override
@@ -37,7 +39,7 @@ class SubcategoryTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  "₹${spent.toStringAsFixed(2)} / ₹${subcategory.monthlyBudget.toStringAsFixed(2)}",
+                  "₹${spent.toStringAsFixed(2)} / ₹${monthlyBudget.toStringAsFixed(2)}",
                   style: const TextStyle(fontSize: 12, color: Colors.black87),
                 ),
               ],

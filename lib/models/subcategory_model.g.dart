@@ -20,7 +20,7 @@ class SubCategoryAdapter extends TypeAdapter<SubCategory> {
       id: fields[0] as int,
       parentCategoryId: fields[1] as int,
       name: fields[2] as String,
-      monthlyBudget: fields[3] as double,
+      monthlyBudgets: (fields[3] as Map?)?.cast<String, double>(),
       spent: fields[4] as double,
     );
   }
@@ -36,7 +36,7 @@ class SubCategoryAdapter extends TypeAdapter<SubCategory> {
       ..writeByte(2)
       ..write(obj.name)
       ..writeByte(3)
-      ..write(obj.monthlyBudget)
+      ..write(obj.monthlyBudgets)
       ..writeByte(4)
       ..write(obj.spent);
   }
